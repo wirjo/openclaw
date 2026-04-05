@@ -150,8 +150,10 @@ export function resetBedrockDiscoveryCacheForTest(): void {
   hasLoggedBedrockError = false;
 }
 
-export function resolveBedrockConfigApiKey(env: NodeJS.ProcessEnv = process.env): string {
-  return resolveAwsSdkEnvVarName(env) ?? "AWS_PROFILE";
+export function resolveBedrockConfigApiKey(
+  env: NodeJS.ProcessEnv = process.env,
+): string | undefined {
+  return resolveAwsSdkEnvVarName(env);
 }
 
 export async function discoverBedrockModels(params: {
