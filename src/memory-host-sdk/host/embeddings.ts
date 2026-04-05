@@ -18,6 +18,11 @@ import {
 import { createOllamaEmbeddingProvider, type OllamaEmbeddingClient } from "./embeddings-ollama.js";
 import { createOpenAiEmbeddingProvider, type OpenAiEmbeddingClient } from "./embeddings-openai.js";
 import { createVoyageEmbeddingProvider, type VoyageEmbeddingClient } from "./embeddings-voyage.js";
+import {
+  createBedrockEmbeddingProvider,
+  hasAwsCredentials,
+  type BedrockEmbeddingClient,
+} from "./embeddings-bedrock.js";
 import { importNodeLlamaCpp } from "./node-llama.js";
 
 export type { GeminiEmbeddingClient } from "./embeddings-gemini.js";
@@ -25,6 +30,7 @@ export type { MistralEmbeddingClient } from "./embeddings-mistral.js";
 export type { OpenAiEmbeddingClient } from "./embeddings-openai.js";
 export type { VoyageEmbeddingClient } from "./embeddings-voyage.js";
 export type { OllamaEmbeddingClient } from "./embeddings-ollama.js";
+export type { BedrockEmbeddingClient } from "./embeddings-bedrock.js";
 
 export type EmbeddingProvider = {
   id: string;
@@ -35,13 +41,14 @@ export type EmbeddingProvider = {
   embedBatchInputs?: (inputs: EmbeddingInput[]) => Promise<number[][]>;
 };
 
-export type EmbeddingProviderId = "openai" | "local" | "gemini" | "voyage" | "mistral" | "ollama";
+export type EmbeddingProviderId = "openai" | "local" | "gemini" | "voyage" | "mistral" | "ollama" | "bedrock";
 export type EmbeddingProviderRequest = EmbeddingProviderId | "auto";
 export type EmbeddingProviderFallback = EmbeddingProviderId | "none";
 
 // Remote providers considered for auto-selection when provider === "auto".
 // Ollama is intentionally excluded here so that "auto" mode does not
 // implicitly assume a local Ollama instance is available.
+// Bedrock is included when AWS credentials are detected.
 const REMOTE_EMBEDDING_PROVIDER_IDS = ["openai", "gemini", "voyage", "mistral"] as const;
 
 export type EmbeddingProviderResult = {
@@ -55,6 +62,7 @@ export type EmbeddingProviderResult = {
   voyage?: VoyageEmbeddingClient;
   mistral?: MistralEmbeddingClient;
   ollama?: OllamaEmbeddingClient;
+  bedrock?: BedrockEmbeddingClient;
 };
 
 export type EmbeddingProviderOptions = {
@@ -192,6 +200,10 @@ export async function createEmbeddingProvider(
       const { provider, client } = await createMistralEmbeddingProvider(options);
       return { provider, mistral: client };
     }
+    if (id === "bedrock") {
+      const { provider, client } = await createBedrockEmbeddingProvider(options);
+      return { provider, bedrock: client };
+    }
     const { provider, client } = await createOpenAiEmbeddingProvider(options);
     return { provider, openAi: client };
   };
@@ -226,6 +238,23 @@ export async function createEmbeddingProvider(
         const wrapped = new Error(message) as Error & { cause?: unknown };
         wrapped.cause = err;
         throw wrapped;
+      }
+    }
+
+    // Try bedrock if AWS credentials are available
+    if (hasAwsCredentials()) {
+      try {
+        const result = await createProvider("bedrock");
+        return { ...result, requestedProvider };
+      } catch (err) {
+        const message = formatPrimaryError(err, "bedrock");
+        if (isMissingApiKeyError(err)) {
+          missingKeyErrors.push(message);
+        } else {
+          const wrapped = new Error(message) as Error & { cause?: unknown };
+          wrapped.cause = err;
+          throw wrapped;
+        }
       }
     }
 
