@@ -182,32 +182,43 @@ describe("bedrock discovery", () => {
           {
             inferenceProfileId: "us.anthropic.claude-sonnet-4-6",
             inferenceProfileName: "US Anthropic Claude Sonnet 4.6",
-            inferenceProfileArn: "arn:aws:bedrock:us-east-1::inference-profile/us.anthropic.claude-sonnet-4-6",
+            inferenceProfileArn:
+              "arn:aws:bedrock:us-east-1::inference-profile/us.anthropic.claude-sonnet-4-6",
             status: "ACTIVE",
             type: "SYSTEM_DEFINED",
             models: [
-              { modelArn: "arn:aws:bedrock:us-east-1::foundation-model/anthropic.claude-sonnet-4-6" },
-              { modelArn: "arn:aws:bedrock:us-west-2::foundation-model/anthropic.claude-sonnet-4-6" },
+              {
+                modelArn: "arn:aws:bedrock:us-east-1::foundation-model/anthropic.claude-sonnet-4-6",
+              },
+              {
+                modelArn: "arn:aws:bedrock:us-west-2::foundation-model/anthropic.claude-sonnet-4-6",
+              },
             ],
           },
           {
             inferenceProfileId: "eu.anthropic.claude-sonnet-4-6",
             inferenceProfileName: "EU Anthropic Claude Sonnet 4.6",
-            inferenceProfileArn: "arn:aws:bedrock:eu-west-1::inference-profile/eu.anthropic.claude-sonnet-4-6",
+            inferenceProfileArn:
+              "arn:aws:bedrock:eu-west-1::inference-profile/eu.anthropic.claude-sonnet-4-6",
             status: "ACTIVE",
             type: "SYSTEM_DEFINED",
             models: [
-              { modelArn: "arn:aws:bedrock:eu-west-1::foundation-model/anthropic.claude-sonnet-4-6" },
+              {
+                modelArn: "arn:aws:bedrock:eu-west-1::foundation-model/anthropic.claude-sonnet-4-6",
+              },
             ],
           },
           {
             inferenceProfileId: "global.anthropic.claude-sonnet-4-6",
             inferenceProfileName: "Global Anthropic Claude Sonnet 4.6",
-            inferenceProfileArn: "arn:aws:bedrock:us-east-1::inference-profile/global.anthropic.claude-sonnet-4-6",
+            inferenceProfileArn:
+              "arn:aws:bedrock:us-east-1::inference-profile/global.anthropic.claude-sonnet-4-6",
             status: "ACTIVE",
             type: "SYSTEM_DEFINED",
             models: [
-              { modelArn: "arn:aws:bedrock:us-east-1::foundation-model/anthropic.claude-sonnet-4-6" },
+              {
+                modelArn: "arn:aws:bedrock:us-east-1::foundation-model/anthropic.claude-sonnet-4-6",
+              },
             ],
           },
           // Inactive profile should be filtered out.
@@ -263,6 +274,91 @@ describe("bedrock discovery", () => {
     // Foundation model should still be discovered despite profile discovery failure.
     expect(models).toHaveLength(1);
     expect(models[0]?.id).toBe("anthropic.claude-3-7-sonnet-20250219-v1:0");
+  });
+
+  it("keeps matching inference profiles when provider filters are enabled", async () => {
+    sendMock
+      .mockResolvedValueOnce({
+        modelSummaries: [
+          {
+            modelId: "anthropic.claude-sonnet-4-6",
+            modelName: "Claude Sonnet 4.6",
+            providerName: "anthropic",
+            inputModalities: ["TEXT", "IMAGE"],
+            outputModalities: ["TEXT"],
+            responseStreamingSupported: true,
+            modelLifecycle: { status: "ACTIVE" },
+          },
+        ],
+      })
+      .mockResolvedValueOnce({
+        inferenceProfileSummaries: [
+          {
+            inferenceProfileId: "global.anthropic.claude-sonnet-4-6",
+            inferenceProfileName: "Global Anthropic Claude Sonnet 4.6",
+            status: "ACTIVE",
+            type: "SYSTEM_DEFINED",
+            models: [
+              {
+                modelArn: "arn:aws:bedrock:us-east-1::foundation-model/anthropic.claude-sonnet-4-6",
+              },
+            ],
+          },
+        ],
+      });
+
+    const models = await discoverBedrockModels({
+      region: "us-east-1",
+      config: { providerFilter: ["anthropic"] },
+      clientFactory,
+    });
+
+    expect(models.map((model) => model.id)).toEqual([
+      "global.anthropic.claude-sonnet-4-6",
+      "anthropic.claude-sonnet-4-6",
+    ]);
+  });
+
+  it("prefers backing model ARNs for application profiles with region-like ids", async () => {
+    sendMock
+      .mockResolvedValueOnce({
+        modelSummaries: [
+          {
+            modelId: "anthropic.claude-sonnet-4-6",
+            modelName: "Claude Sonnet 4.6",
+            providerName: "anthropic",
+            inputModalities: ["TEXT", "IMAGE"],
+            outputModalities: ["TEXT"],
+            responseStreamingSupported: true,
+            modelLifecycle: { status: "ACTIVE" },
+          },
+        ],
+      })
+      .mockResolvedValueOnce({
+        inferenceProfileSummaries: [
+          {
+            inferenceProfileId: "us.my-prod-profile",
+            inferenceProfileName: "Prod Claude Profile",
+            status: "ACTIVE",
+            type: "APPLICATION",
+            models: [
+              {
+                modelArn: "arn:aws:bedrock:us-east-1::foundation-model/anthropic.claude-sonnet-4-6",
+              },
+            ],
+          },
+        ],
+      });
+
+    const models = await discoverBedrockModels({ region: "us-east-1", clientFactory });
+    const profile = models.find((model) => model.id === "us.my-prod-profile");
+
+    expect(profile).toMatchObject({
+      id: "us.my-prod-profile",
+      input: ["text", "image"],
+      contextWindow: 32000,
+      maxTokens: 4096,
+    });
   });
 
   it("merges implicit Bedrock models into explicit provider overrides", () => {

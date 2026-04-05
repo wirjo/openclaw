@@ -1,6 +1,9 @@
 import type { StreamFn } from "@mariozechner/pi-agent-core";
 import type { OpenClawPluginApi } from "openclaw/plugin-sdk/plugin-entry";
-import { buildProviderReplayFamilyHooks, normalizeProviderId } from "openclaw/plugin-sdk/provider-model-shared";
+import {
+  buildProviderReplayFamilyHooks,
+  normalizeProviderId,
+} from "openclaw/plugin-sdk/provider-model-shared";
 import {
   createBedrockNoCacheWrapper,
   isAnthropicBedrockModel,

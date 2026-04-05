@@ -174,15 +174,15 @@ function toModelDefinition(
  *   → "anthropic.claude-sonnet-4-6"
  */
 function resolveBaseModelId(profile: InferenceProfileSummary): string | undefined {
-  const id = profile.inferenceProfileId ?? "";
-  // System-defined: strip the region prefix (us., eu., ap., jp., global.)
-  const prefixMatch = /^(?:us|eu|ap|jp|global)\.(.+)$/i.exec(id);
-  if (prefixMatch) return prefixMatch[1];
-  // Application: extract model ID from the first model ARN.
   const firstArn = profile.models?.[0]?.modelArn;
   if (firstArn) {
     const arnMatch = /foundation-model\/(.+)$/.exec(firstArn);
     if (arnMatch) return arnMatch[1];
+  }
+  if (profile.type === "SYSTEM_DEFINED") {
+    const id = profile.inferenceProfileId ?? "";
+    const prefixMatch = /^(?:us|eu|ap|jp|global)\.(.+)$/i.exec(id);
+    if (prefixMatch) return prefixMatch[1];
   }
   return undefined;
 }
