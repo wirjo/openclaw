@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import type { ProviderConfig } from "./models-config.providers.secrets.js";
-import { resolveMissingProviderApiKey } from "./models-config.providers.secrets.js";
+import {
+  resolveAwsSdkApiKeyVarName,
+  resolveMissingProviderApiKey,
+} from "./models-config.providers.secrets.js";
 
 /**
  * Regression tests for #49891 / #50699 / #54274:
@@ -131,5 +134,25 @@ describe("resolveMissingProviderApiKey — aws-sdk auth", () => {
     });
 
     expect(result.apiKey).toBe("AWS_ACCESS_KEY_ID");
+  });
+});
+
+describe("resolveAwsSdkApiKeyVarName", () => {
+  it("returns undefined when AWS auth env markers are absent", () => {
+    expect(resolveAwsSdkApiKeyVarName({})).toBeUndefined();
+  });
+
+  it("preserves the AWS auth env precedence order", () => {
+    expect(
+      resolveAwsSdkApiKeyVarName({
+        AWS_BEARER_TOKEN_BEDROCK: "bearer",
+        AWS_PROFILE: "default",
+      }),
+    ).toBe("AWS_BEARER_TOKEN_BEDROCK");
+    expect(
+      resolveAwsSdkApiKeyVarName({
+        AWS_PROFILE: "default",
+      }),
+    ).toBe("AWS_PROFILE");
   });
 });
