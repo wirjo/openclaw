@@ -32,7 +32,10 @@ const DEFAULT_REFRESH_INTERVAL_SECONDS = 3600; // 1 hour
  * the amazon-bedrock extension, not this one.
  */
 const KNOWN_CONTEXT_WINDOWS: Record<string, number> = {
+  // Anthropic Claude (available via /anthropic/v1/messages, not Chat Completions)
+  "anthropic.claude-opus-4-7": 1_000_000,
   // MiniMax
+  "minimax.minimax-m2.5": 1_000_000,
   "minimax.minimax-m2.1": 1_000_000,
   "minimax.minimax-m2": 1_000_000,
   // Qwen
@@ -47,10 +50,12 @@ const KNOWN_CONTEXT_WINDOWS: Record<string, number> = {
   "deepseek.v3.2": 128_000,
   "deepseek.v3.1": 128_000,
   // GLM
+  "zai.glm-5": 128_000,
   "zai.glm-4.7": 128_000,
   "zai.glm-4.7-flash": 128_000,
   "zai.glm-4.6": 128_000,
   // NVIDIA Nemotron
+  "nvidia.nemotron-super-3-120b": 128_000,
   "nvidia.nemotron-nano-3-30b": 128_000,
   "nvidia.nemotron-nano-12b-v2": 128_000,
   "nvidia.nemotron-nano-9b-v2": 128_000,
