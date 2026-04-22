@@ -130,8 +130,7 @@ export async function generateBearerTokenFromIam(params: {
  * Read a cached IAM bearer token for the given region (sync, no generation).
  *
  * Returns the token if it exists and has not expired, undefined otherwise.
- * This is used by `resolveConfigApiKey` to serve a fresh token at auth
- * resolution time without requiring an async call.
+ * Used by Mantle runtime auth and tests to inspect the current cache.
  */
 export function getCachedIamToken(region: string): string | undefined {
   return getCachedIamTokenEntry(region)?.token;

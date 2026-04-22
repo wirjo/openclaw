@@ -83,7 +83,7 @@ describe("bedrock mantle discovery", () => {
     let now = 1000;
 
     const t1 = await generateBearerTokenFromIam({ region: "us-east-1", now: () => now });
-    now += 1800_000; // 30 min — within 1hr cache TTL
+    now += 1800_000; // 30 min — within 2hr cache TTL
     const t2 = await generateBearerTokenFromIam({ region: "us-east-1", now: () => now });
 
     expect(t1).toEqual(t2);
