@@ -150,6 +150,36 @@ describe("bedrock discovery", () => {
     });
   });
 
+  it("normalizes region-prefixed versioned model ids when resolving context windows", async () => {
+    sendMock
+      .mockResolvedValueOnce({
+        modelSummaries: [],
+      })
+      .mockResolvedValueOnce({
+        inferenceProfileSummaries: [
+          {
+            inferenceProfileId: "jp.anthropic.claude-sonnet-4-6-v1:0",
+            inferenceProfileName: "JP Claude Sonnet 4.6",
+            status: "ACTIVE",
+            type: "SYSTEM_DEFINED",
+            models: [
+              {
+                modelArn:
+                  "arn:aws:bedrock:ap-northeast-1::foundation-model/anthropic.claude-sonnet-4-6-v1:0",
+              },
+            ],
+          },
+        ],
+      });
+
+    const models = await discoverBedrockModels({ region: "ap-northeast-1", clientFactory });
+
+    expect(models[0]).toMatchObject({
+      id: "jp.anthropic.claude-sonnet-4-6-v1:0",
+      contextWindow: 1_000_000,
+    });
+  });
+
   it("caches results when refreshInterval is enabled", async () => {
     mockSingleActiveSummary();
 
@@ -394,6 +424,38 @@ describe("bedrock discovery", () => {
       input: ["text", "image"],
       contextWindow: 1000000,
       maxTokens: 4096,
+    });
+  });
+
+  it("uses the resolved base model id for application-profile context fallback", async () => {
+    sendMock
+      .mockResolvedValueOnce({
+        modelSummaries: [],
+      })
+      .mockResolvedValueOnce({
+        inferenceProfileSummaries: [
+          {
+            inferenceProfileId: "us.my-prod-profile",
+            inferenceProfileName: "Prod Claude Profile",
+            status: "ACTIVE",
+            type: "APPLICATION",
+            models: [
+              {
+                modelArn:
+                  "arn:aws:bedrock:us-east-1::foundation-model/anthropic.claude-opus-4-6-v1:0",
+              },
+            ],
+          },
+        ],
+      });
+
+    const models = await discoverBedrockModels({ region: "us-east-1", clientFactory });
+
+    expect(models[0]).toMatchObject({
+      id: "us.my-prod-profile",
+      contextWindow: 1_000_000,
+      maxTokens: 4096,
+      input: ["text"],
     });
   });
 

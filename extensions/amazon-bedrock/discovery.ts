@@ -49,7 +49,9 @@ const KNOWN_CONTEXT_WINDOWS: Record<string, number> = {
   "anthropic.claude-3-7-sonnet-20250219-v1:0": 200_000,
   "anthropic.claude-opus-4-7": 1_000_000,
   "anthropic.claude-opus-4-6-v1": 1_000_000,
+  "anthropic.claude-opus-4-6-v1:0": 1_000_000,
   "anthropic.claude-sonnet-4-6": 1_000_000,
+  "anthropic.claude-sonnet-4-6-v1:0": 1_000_000,
   "anthropic.claude-sonnet-4-5-20250929-v1:0": 200_000,
   "anthropic.claude-sonnet-4-20250514-v1:0": 200_000,
   "anthropic.claude-opus-4-5-20251101-v1:0": 200_000,
@@ -117,13 +119,19 @@ const KNOWN_CONTEXT_WINDOWS: Record<string, number> = {
  * Strips inference profile prefixes (us., eu., ap., global.) before lookup.
  */
 function resolveKnownContextWindow(modelId: string): number | undefined {
-  if (KNOWN_CONTEXT_WINDOWS[modelId] !== undefined) {
-    return KNOWN_CONTEXT_WINDOWS[modelId];
-  }
-  // Strip regional inference profile prefix
   const stripped = modelId.replace(/^(?:us|eu|ap|apac|au|jp|global)\./, "");
-  if (stripped !== modelId && KNOWN_CONTEXT_WINDOWS[stripped] !== undefined) {
-    return KNOWN_CONTEXT_WINDOWS[stripped];
+  const candidates = [modelId, stripped];
+  for (const candidate of candidates) {
+    if (KNOWN_CONTEXT_WINDOWS[candidate] !== undefined) {
+      return KNOWN_CONTEXT_WINDOWS[candidate];
+    }
+    const withoutVersionSuffix = candidate.replace(/:0$/, "");
+    if (
+      withoutVersionSuffix !== candidate &&
+      KNOWN_CONTEXT_WINDOWS[withoutVersionSuffix] !== undefined
+    ) {
+      return KNOWN_CONTEXT_WINDOWS[withoutVersionSuffix];
+    }
   }
   return undefined;
 }
@@ -388,7 +396,7 @@ function resolveInferenceProfiles(
       input: baseModel?.input ?? ["text"],
       cost: baseModel?.cost ?? DEFAULT_COST,
       contextWindow: baseModel?.contextWindow
-        ?? resolveKnownContextWindow(profile.inferenceProfileId ?? "")
+        ?? resolveKnownContextWindow(baseModelId ?? profile.inferenceProfileId ?? "")
         ?? defaults.contextWindow,
       maxTokens: baseModel?.maxTokens ?? defaults.maxTokens,
     });
