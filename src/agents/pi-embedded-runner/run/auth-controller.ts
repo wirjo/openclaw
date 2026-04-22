@@ -401,13 +401,15 @@ export function createEmbeddedRunAuthController(params: {
           params.setLastProfileId(resolvedProfileId);
           return;
         }
-      } catch {
-        // Runtime auth preparation not available for this provider — fall
-        // through to sentinel injection below.
+      } catch (error) {
+        params.log.warn(
+          `prepareProviderRuntimeAuth failed for ${runtimeModel.provider}, falling back to sentinel: ${formatErrorMessage(error)}`,
+        );
       }
       // No runtime auth plugin resolved a real credential.  Inject the
       // sentinel so pi's hasConfiguredAuth() passes and the AWS SDK default
       // credential chain handles actual request signing.
+      clearRuntimeAuthRefreshTimer();
       params.authStorage.setRuntimeApiKey(runtimeModel.provider, AWS_SDK_AUTH_SENTINEL);
       params.setRuntimeAuthState(null);
       params.setLastProfileId(resolvedProfileId);
