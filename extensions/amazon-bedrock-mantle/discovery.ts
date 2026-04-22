@@ -43,6 +43,10 @@ function mantleEndpoint(region: string): string {
   return `https://bedrock-mantle.${region}.api.aws`;
 }
 
+function mantleAnthropicBaseUrl(region: string): string {
+  return `https://bedrock-mantle.${region}.api.aws/anthropic`;
+}
+
 function isSupportedRegion(region: string): boolean {
   return (MANTLE_SUPPORTED_REGIONS as readonly string[]).includes(region);
 }
