@@ -21,7 +21,7 @@ import {
 const log = createSubsystemLogger("bedrock-discovery");
 
 const DEFAULT_REFRESH_INTERVAL_SECONDS = 3600;
-const DEFAULT_CONTEXT_WINDOW = 200_000;
+const DEFAULT_CONTEXT_WINDOW = 32_000;
 const DEFAULT_MAX_TOKENS = 4096;
 
 // ---------------------------------------------------------------------------
@@ -46,6 +46,7 @@ const DEFAULT_MAX_TOKENS = 4096;
  */
 const KNOWN_CONTEXT_WINDOWS: Record<string, number> = {
   // Anthropic Claude
+  "anthropic.claude-3-7-sonnet-20250219-v1:0": 200_000,
   "anthropic.claude-opus-4-7": 1_000_000,
   "anthropic.claude-opus-4-6-v1": 1_000_000,
   "anthropic.claude-sonnet-4-6": 1_000_000,
@@ -79,7 +80,7 @@ const KNOWN_CONTEXT_WINDOWS: Record<string, number> = {
   "meta.llama3-1-70b-instruct-v1:0": 128_000,
   "meta.llama3-1-8b-instruct-v1:0": 128_000,
   // NVIDIA Nemotron
-  "nvidia.nemotron-super-3-120b": 128_000,
+  "nvidia.nemotron-super-3-120b": 256_000,
   "nvidia.nemotron-nano-3-30b": 128_000,
   "nvidia.nemotron-nano-12b-v2": 128_000,
   "nvidia.nemotron-nano-9b-v2": 128_000,

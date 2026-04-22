@@ -104,7 +104,11 @@ describe("bedrock discovery", () => {
   });
 
   it("uses configured defaults for context and max tokens", async () => {
-    mockSingleActiveSummary();
+    mockSingleActiveSummary({
+      modelId: "example.unknown-text-v1:0",
+      modelName: "Example Unknown Text",
+      providerName: "example",
+    });
 
     const models = await discoverBedrockModels({
       region: "us-east-1",
@@ -112,6 +116,38 @@ describe("bedrock discovery", () => {
       clientFactory,
     });
     expect(models[0]).toMatchObject({ contextWindow: 64000, maxTokens: 8192 });
+  });
+
+  it("keeps the conservative fallback for unknown inference profiles", async () => {
+    sendMock
+      .mockResolvedValueOnce({
+        modelSummaries: [],
+      })
+      .mockResolvedValueOnce({
+        inferenceProfileSummaries: [
+          {
+            inferenceProfileId: "jp.example.unknown-text-v1:0",
+            inferenceProfileName: "JP Example Unknown Text",
+            status: "ACTIVE",
+            type: "SYSTEM_DEFINED",
+            models: [
+              {
+                modelArn: "arn:aws:bedrock:ap-northeast-1::foundation-model/example.unknown-text-v1:0",
+              },
+            ],
+          },
+        ],
+      });
+
+    const models = await discoverBedrockModels({ region: "ap-northeast-1", clientFactory });
+
+    expect(models).toHaveLength(1);
+    expect(models[0]).toMatchObject({
+      id: "jp.example.unknown-text-v1:0",
+      contextWindow: 32000,
+      maxTokens: 4096,
+      input: ["text"],
+    });
   });
 
   it("caches results when refreshInterval is enabled", async () => {
