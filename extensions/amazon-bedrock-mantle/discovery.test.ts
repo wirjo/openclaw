@@ -3,11 +3,13 @@ import {
   discoverMantleModels,
   generateBearerTokenFromIam,
   getCachedIamToken,
+  MANTLE_IAM_TOKEN_MARKER,
   mergeImplicitMantleProvider,
   resetIamTokenCacheForTest,
   resetMantleDiscoveryCacheForTest,
   resolveMantleBearerToken,
   resolveImplicitMantleProvider,
+  resolveMantleRuntimeBearerToken,
 } from "./api.js";
 
 const mocks = vi.hoisted(() => ({
@@ -411,7 +413,7 @@ describe("bedrock mantle discovery", () => {
     });
 
     expect(provider).not.toBeNull();
-    expect(provider?.apiKey).toBe("bedrock-api-key-iam");
+    expect(provider?.apiKey).toBe(MANTLE_IAM_TOKEN_MARKER);
     expect(tokenProvider).toHaveBeenCalledTimes(1);
     expect(mockFetch).toHaveBeenCalledWith(
       "https://bedrock-mantle.us-east-1.api.aws/v1/models",
@@ -421,6 +423,49 @@ describe("bedrock mantle discovery", () => {
         }),
       }),
     );
+  });
+
+  it("resolves Mantle runtime auth from the cached IAM token marker", async () => {
+    const tokenProvider = vi.fn(async () => "bedrock-api-key-runtime"); // pragma: allowlist secret
+    mocks.getTokenProvider.mockReturnValue(tokenProvider);
+
+    await generateBearerTokenFromIam({
+      region: "us-east-1",
+      now: () => 1000,
+    });
+
+    await expect(
+      resolveMantleRuntimeBearerToken({
+        apiKey: MANTLE_IAM_TOKEN_MARKER,
+        env: {
+          AWS_REGION: "us-east-1",
+        } as NodeJS.ProcessEnv,
+        now: () => 2000,
+      }),
+    ).resolves.toMatchObject({
+      apiKey: "bedrock-api-key-runtime",
+      expiresAt: 1000 + 7200_000,
+    });
+    expect(tokenProvider).toHaveBeenCalledTimes(1);
+  });
+
+  it("generates a fresh Mantle runtime IAM token when the cache is cold", async () => {
+    const tokenProvider = vi.fn(async () => "bedrock-api-key-fresh"); // pragma: allowlist secret
+    mocks.getTokenProvider.mockReturnValue(tokenProvider);
+
+    await expect(
+      resolveMantleRuntimeBearerToken({
+        apiKey: MANTLE_IAM_TOKEN_MARKER,
+        env: {
+          AWS_REGION: "us-east-1",
+        } as NodeJS.ProcessEnv,
+        now: () => 5000,
+      }),
+    ).resolves.toMatchObject({
+      apiKey: "bedrock-api-key-fresh",
+      expiresAt: 5000 + 7200_000,
+    });
+    expect(tokenProvider).toHaveBeenCalledTimes(1);
   });
 
   it("returns null for unsupported regions", async () => {

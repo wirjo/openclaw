@@ -18,6 +18,7 @@ const DEFAULT_COST = {
 const DEFAULT_CONTEXT_WINDOW = 32000;
 const DEFAULT_MAX_TOKENS = 4096;
 const DEFAULT_REFRESH_INTERVAL_SECONDS = 3600; // 1 hour
+export const MANTLE_IAM_TOKEN_MARKER = "__amazon_bedrock_mantle_iam__";
 
 // ---------------------------------------------------------------------------
 // Mantle region & endpoint helpers
@@ -69,7 +70,22 @@ export function resolveMantleBearerToken(env: NodeJS.ProcessEnv = process.env): 
 
 /** Token cache for IAM-derived bearer tokens, keyed by region. */
 const iamTokenCache = new Map<string, { token: string; expiresAt: number }>();
-const IAM_TOKEN_TTL_MS = 3600_000; // Refresh every 1 hour (tokens valid up to 12h)
+const IAM_TOKEN_TTL_MS = 7200_000; // Matches the 2h token lifetime we request below.
+
+function resolveMantleRegion(env: NodeJS.ProcessEnv): string {
+  return env.AWS_REGION ?? env.AWS_DEFAULT_REGION ?? "us-east-1";
+}
+
+function getCachedIamTokenEntry(
+  region: string,
+  now: number = Date.now(),
+): { token: string; expiresAt: number } | undefined {
+  const cached = iamTokenCache.get(region);
+  if (cached && cached.expiresAt > now) {
+    return cached;
+  }
+  return undefined;
+}
 
 /**
  * Generate a bearer token from IAM credentials using `@aws/bedrock-token-generator`.
@@ -82,9 +98,9 @@ export async function generateBearerTokenFromIam(params: {
   now?: () => number;
 }): Promise<string | undefined> {
   const now = params.now?.() ?? Date.now();
-  const cached = iamTokenCache.get(params.region);
+  const cached = getCachedIamTokenEntry(params.region, now);
 
-  if (cached && cached.expiresAt > now) {
+  if (cached) {
     return cached.token;
   }
 
@@ -118,11 +134,38 @@ export async function generateBearerTokenFromIam(params: {
  * resolution time without requiring an async call.
  */
 export function getCachedIamToken(region: string): string | undefined {
-  const cached = iamTokenCache.get(region);
-  if (cached && cached.expiresAt > Date.now()) {
-    return cached.token;
+  return getCachedIamTokenEntry(region)?.token;
+}
+
+export async function resolveMantleRuntimeBearerToken(params: {
+  apiKey: string;
+  env?: NodeJS.ProcessEnv;
+  now?: () => number;
+}): Promise<{ apiKey: string; expiresAt?: number } | undefined> {
+  if (params.apiKey !== MANTLE_IAM_TOKEN_MARKER) {
+    return { apiKey: params.apiKey };
   }
-  return undefined;
+  const now = params.now?.() ?? Date.now();
+  const region = resolveMantleRegion(params.env ?? process.env);
+  const cached = getCachedIamTokenEntry(region, now);
+  if (cached) {
+    return {
+      apiKey: cached.token,
+      expiresAt: cached.expiresAt,
+    };
+  }
+  const token = await generateBearerTokenFromIam({
+    region,
+    now: params.now,
+  });
+  if (!token) {
+    return undefined;
+  }
+  const refreshed = getCachedIamTokenEntry(region, now);
+  return {
+    apiKey: refreshed?.token ?? token,
+    expiresAt: refreshed?.expiresAt ?? now + IAM_TOKEN_TTL_MS,
+  };
 }
 
 /** Reset the IAM token cache (for testing). */
@@ -274,7 +317,7 @@ export async function resolveImplicitMantleProvider(params: {
   fetchFn?: typeof fetch;
 }): Promise<ModelProviderConfig | null> {
   const env = params.env ?? process.env;
-  const region = env.AWS_REGION ?? env.AWS_DEFAULT_REGION ?? "us-east-1";
+  const region = resolveMantleRegion(env);
   const explicitBearerToken = resolveMantleBearerToken(env);
 
   if (!isSupportedRegion(region)) {
@@ -305,7 +348,7 @@ export async function resolveImplicitMantleProvider(params: {
     baseUrl: `${mantleEndpoint(region)}/v1`,
     api: "openai-completions",
     auth: "api-key",
-    apiKey: explicitBearerToken ? "env:AWS_BEARER_TOKEN_BEDROCK" : bearerToken,
+    apiKey: explicitBearerToken ? "env:AWS_BEARER_TOKEN_BEDROCK" : MANTLE_IAM_TOKEN_MARKER,
     models,
   };
 }
