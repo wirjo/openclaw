@@ -5,7 +5,6 @@ import {
 } from "@aws-sdk/client-transcribe-streaming";
 import { runFfmpeg } from "openclaw/plugin-sdk/media-runtime";
 import fs from "node:fs/promises";
-import os from "node:os";
 import path from "node:path";
 import { getAwsClient } from "../shared/client-cache.js";
 
@@ -48,7 +47,8 @@ function resolveNativeEncoding(mime?: string): TranscribeEncoding | null {
  * Returns { buffer, encoding, sampleRate } for the converted audio.
  */
 async function convertToPcm(inputBuffer: Buffer, mime?: string): Promise<Buffer> {
-  const tmpDir = os.tmpdir();
+  const { resolvePreferredOpenClawTmpDir } = await import("openclaw/plugin-sdk/temp-path");
+  const tmpDir = resolvePreferredOpenClawTmpDir();
   const id = `transcribe-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   const ext = mime?.includes("mp3") || mime?.includes("mpeg") ? ".mp3"
     : mime?.includes("m4a") || mime?.includes("mp4") ? ".m4a"
@@ -156,6 +156,7 @@ export async function transcribeAudio(params: TranscribeParams): Promise<string>
     const name = err instanceof Error ? err.name : "UnknownError";
     throw new Error(
       `Amazon Transcribe failed (region=${region}, language=${language ?? "en-US"}): [${name}] ${message}`,
+      { cause: err },
     );
   } finally {
     clearTimeout(timeout);

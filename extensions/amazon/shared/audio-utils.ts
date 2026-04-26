@@ -33,7 +33,7 @@ export function pcm16ToMulaw(pcm: Buffer): Buffer {
   for (let i = 0; i < mulaw.length; i++) {
     let sample = pcm.readInt16LE(i * 2);
     const sign = sample < 0 ? 0x80 : 0;
-    if (sample < 0) sample = -sample;
+    if (sample < 0) { sample = -sample; }
     sample = Math.min(sample, 32635);
     sample += 0x84;
 

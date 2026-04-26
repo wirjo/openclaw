@@ -83,7 +83,7 @@ export class NovaSonicVoiceBridge implements RealtimeVoiceBridge {
     throw new Error("Nova Sonic does not support text-only input; use audio");
   }
 
-  triggerGreeting?(instructions?: string): void {
+  triggerGreeting?(_instructions?: string): void {
     // Send a brief silent frame to prompt Nova Sonic to begin with its system prompt
     if (!this.connected) { return; }
     const silentPcm = Buffer.alloc(3200); // 100ms of silence at 16kHz 16-bit mono
@@ -168,16 +168,22 @@ export class NovaSonicVoiceBridge implements RealtimeVoiceBridge {
 
   private async doConnect(): Promise<void> {
     const sessionConfig = this.buildSessionConfig();
-    const self = this;
+    // Capture instance properties needed by the generator (generators cannot
+    // use arrow syntax, so direct `this` access is unavailable).
+    const bridge = {
+      intentionallyClosed: () => this.intentionallyClosed,
+      inputStream: this.inputStream,
+      setInputResolve: (resolve: (v: boolean) => void) => { this.inputResolve = resolve; },
+    };
 
     async function* inputGenerator() {
       yield { chunk: { bytes: encodeEvent(sessionConfig) } };
-      while (!self.intentionallyClosed) {
-        if (self.inputStream.length > 0) {
-          const batch = self.inputStream.splice(0);
+      while (!bridge.intentionallyClosed()) {
+        if (bridge.inputStream.length > 0) {
+          const batch = bridge.inputStream.splice(0);
           for (const item of batch) { yield item; }
         } else {
-          await new Promise<boolean>((resolve) => { self.inputResolve = resolve; });
+          await new Promise<boolean>((resolve) => { bridge.setInputResolve(resolve); });
         }
       }
       yield { chunk: { bytes: encodeEvent({ event: { type: "sessionEnd" } }) } };

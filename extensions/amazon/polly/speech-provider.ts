@@ -1,5 +1,4 @@
 import fs from "node:fs/promises";
-import os from "node:os";
 import path from "node:path";
 import type {
   SpeechDirectiveTokenParseContext,
@@ -73,7 +72,8 @@ function parseDirectiveToken(ctx: SpeechDirectiveTokenParseContext) {
  * Convert MP3 audio to Opus-in-OGG for WhatsApp voice note compatibility.
  */
 async function convertToOpusOgg(inputBuffer: Buffer): Promise<Buffer> {
-  const tmpDir = os.tmpdir();
+  const { resolvePreferredOpenClawTmpDir } = await import("openclaw/plugin-sdk/temp-path");
+  const tmpDir = resolvePreferredOpenClawTmpDir();
   const id = `polly-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   const inputPath = path.join(tmpDir, `${id}.mp3`);
   const outputPath = path.join(tmpDir, `${id}.ogg`);
