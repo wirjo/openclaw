@@ -35,6 +35,24 @@ function getPollyClient(region: string): PollyClient {
   return getAwsClient(`polly:${region}`, () => new PollyClient({ region }));
 }
 
+/** Retry transient errors (throttling, server errors) with exponential backoff. */
+async function withRetry<T>(fn: () => Promise<T>, maxAttempts = 3): Promise<T> {
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      return await fn();
+    } catch (err: unknown) {
+      const name = err instanceof Error ? (err as { name?: string }).name : "";
+      const isRetryable =
+        name === "ThrottlingException" ||
+        name === "ServiceUnavailableException" ||
+        name === "InternalServiceException";
+      if (!isRetryable || attempt === maxAttempts) throw err;
+      await new Promise((r) => setTimeout(r, 500 * 2 ** (attempt - 1)));
+    }
+  }
+  throw new Error("unreachable");
+}
+
 /**
  * Synthesize speech audio using the Amazon Polly SynthesizeSpeech API.
  */
@@ -64,7 +82,9 @@ export async function pollySynthesize(params: PollySynthesizeParams): Promise<Bu
     }
 
     const command = new SynthesizeSpeechCommand(input);
-    const response = await client.send(command, { abortSignal: controller.signal });
+    const response = await withRetry(() =>
+      client.send(command, { abortSignal: controller.signal }),
+    );
 
     if (!response.AudioStream) {
       throw new Error("Amazon Polly returned empty audio stream");

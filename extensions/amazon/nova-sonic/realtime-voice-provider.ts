@@ -6,6 +6,9 @@ const DEFAULT_MODEL = "amazon.nova-sonic-v1:0";
 const DEFAULT_VOICE = "tiffany";
 const DEFAULT_REGION = "us-east-1";
 
+/** Supported Nova Sonic model IDs. */
+const SUPPORTED_MODELS = ["amazon.nova-sonic-v1:0", "amazon.nova-2-sonic-v1:0"] as const;
+
 type NovaSonicProviderConfig = {
   enabled: boolean;
   model: string;

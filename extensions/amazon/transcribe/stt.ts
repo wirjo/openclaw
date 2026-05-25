@@ -20,6 +20,25 @@ function getTranscribeClient(region: string): TranscribeStreamingClient {
   return getAwsClient(`transcribe:${region}`, () => new TranscribeStreamingClient({ region }));
 }
 
+/** Retry transient errors (throttling, server errors) with exponential backoff. */
+async function withRetry<T>(fn: () => Promise<T>, maxAttempts = 3): Promise<T> {
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      return await fn();
+    } catch (err: unknown) {
+      const name = err instanceof Error ? (err as { name?: string }).name : "";
+      const isRetryable =
+        name === "ThrottlingException" ||
+        name === "ServiceUnavailableException" ||
+        name === "InternalFailureException" ||
+        name === "LimitExceededException";
+      if (!isRetryable || attempt === maxAttempts) throw err;
+      await new Promise((r) => setTimeout(r, 500 * 2 ** (attempt - 1)));
+    }
+  }
+  throw new Error("unreachable");
+}
+
 /** Supported Transcribe Streaming encodings. */
 type TranscribeEncoding = "pcm" | "ogg-opus" | "flac";
 
@@ -145,7 +164,9 @@ export async function transcribeAudio(params: TranscribeParams): Promise<string>
       AudioStream: audioStream(),
     });
 
-    const response = await client.send(command, { abortSignal: controller.signal });
+    const response = await withRetry(() =>
+      client.send(command, { abortSignal: controller.signal }),
+    );
 
     const transcripts: string[] = [];
     if (response.TranscriptResultStream) {

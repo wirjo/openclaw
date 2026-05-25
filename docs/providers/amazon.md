@@ -10,23 +10,23 @@ title: "Amazon"
 
 The **Amazon** plugin bundles three AWS AI services into a single extension:
 
-| Service          | Capability      | Default Model / Voice        |
-| ---------------- | --------------- | ---------------------------- |
-| Amazon Polly     | TTS (speech)    | `generative` engine, `Ruth`    |
-| Amazon Transcribe| STT (audio)     | Streaming transcription      |
-| Nova Sonic       | Realtime voice  | `amazon.nova-sonic-v1:0`, `tiffany` |
+| Service           | Capability     | Default Model / Voice               |
+| ----------------- | -------------- | ----------------------------------- |
+| Amazon Polly      | TTS (speech)   | `generative` engine, `Ruth`         |
+| Amazon Transcribe | STT (audio)    | Streaming transcription             |
+| Nova Sonic        | Realtime voice | `amazon.nova-sonic-v1:0`, `tiffany` |
 
 All services authenticate via the **AWS IAM credential chain** (environment
 variables, shared credentials file, instance profile, ECS task role, etc.).
 No separate API key is needed — if your environment can call AWS APIs, the
 plugin will work.
 
-| Detail        | Value                                                                        |
-| ------------- | ---------------------------------------------------------------------------- |
-| Website       | [aws.amazon.com](https://aws.amazon.com)                                     |
-| Docs          | [docs.aws.amazon.com](https://docs.aws.amazon.com)                           |
-| Auth          | AWS IAM credential chain (`AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` or instance role) |
-| Regions       | Any AWS region where the services are available                               |
+| Detail  | Value                                                                                     |
+| ------- | ----------------------------------------------------------------------------------------- |
+| Website | [aws.amazon.com](https://aws.amazon.com)                                                  |
+| Docs    | [docs.aws.amazon.com](https://docs.aws.amazon.com)                                        |
+| Auth    | AWS IAM credential chain (`AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` or instance role) |
+| Regions | Any AWS region where the services are available                                           |
 
 ## Getting started
 
@@ -80,31 +80,31 @@ plugin will work.
 
 ### Polly (TTS)
 
-| Key       | Default      | Description                          |
-| --------- | ------------ | ------------------------------------ |
-| `enabled` | `true`       | Enable/disable Polly TTS             |
-| `region`  | `us-east-1`  | AWS region                           |
-| `voice`   | `Ruth`       | Polly voice ID                       |
-| `engine`  | `generative` | `generative`, `neural`, or `standard`|
+| Key       | Default      | Description                           |
+| --------- | ------------ | ------------------------------------- |
+| `enabled` | `true`       | Enable/disable Polly TTS              |
+| `region`  | `us-east-1`  | AWS region                            |
+| `voice`   | `Ruth`       | Polly voice ID                        |
+| `engine`  | `generative` | `generative`, `neural`, or `standard` |
 
 ### Transcribe (STT)
 
-| Key            | Default      | Description                     |
-| -------------- | ------------ | ------------------------------- |
-| `enabled`      | `true`       | Enable/disable Transcribe STT   |
-| `region`       | `us-east-1`  | AWS region                      |
-| `languageCode` | —            | BCP-47 language code (optional) |
+| Key            | Default     | Description                     |
+| -------------- | ----------- | ------------------------------- |
+| `enabled`      | `true`      | Enable/disable Transcribe STT   |
+| `region`       | `us-east-1` | AWS region                      |
+| `languageCode` | —           | BCP-47 language code (optional) |
 
 ### Nova Sonic (Realtime Voice)
 
-| Key           | Default                   | Description                    |
-| ------------- | ------------------------- | ------------------------------ |
-| `enabled`     | `true`                    | Enable/disable Nova Sonic      |
-| `region`      | `us-east-1`              | AWS region                     |
-| `model`       | `amazon.nova-sonic-v1:0` | Model ID                       |
-| `voice`       | `tiffany`                | Voice ID                       |
-| `temperature` | `0.7`                    | Generation temperature         |
-| `maxTokens`   | `4096`                   | Max output tokens              |
+| Key           | Default                  | Description                                                                                                                           |
+| ------------- | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------- |
+| `enabled`     | `true`                   | Enable/disable Nova Sonic                                                                                                             |
+| `region`      | `us-east-1`              | AWS region                                                                                                                            |
+| `model`       | `amazon.nova-sonic-v1:0` | Model ID (`amazon.nova-sonic-v1:0` or `amazon.nova-2-sonic-v1:0`)                                                                     |
+| `voice`       | `tiffany`                | Voice ID (tiffany, matthew, amy, olivia, lupe, carlos, ambre, florian, lennart, beatrice, lorenzo, tina, carolina, leo, kiara, arjun) |
+| `temperature` | `0.7`                    | Generation temperature                                                                                                                |
+| `maxTokens`   | `4096`                   | Max output tokens                                                                                                                     |
 
 ## Disabling individual services
 
@@ -112,14 +112,14 @@ Set `enabled: false` on any sub-service to skip registration:
 
 ```json5
 {
-  "plugins": {
-    "entries": {
-      "amazon": {
-        "config": {
-          "transcribe": { "enabled": false }
-        }
-      }
-    }
-  }
+  plugins: {
+    entries: {
+      amazon: {
+        config: {
+          transcribe: { enabled: false },
+        },
+      },
+    },
+  },
 }
 ```
