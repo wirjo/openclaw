@@ -104,7 +104,22 @@ export function resolveAcpxPluginRoot(moduleUrl: string = import.meta.url): stri
 export const ACPX_PLUGIN_ROOT = resolveAcpxPluginRoot();
 
 const DEFAULT_PERMISSION_MODE: AcpxPermissionMode = "approve-reads";
-const DEFAULT_NON_INTERACTIVE_POLICY: AcpxNonInteractivePermissionPolicy = "fail";
+// The embedded acpx runtime always runs inside the headless OpenClaw gateway
+// process, which never has a TTY attached (process.stdin.isTTY/process.stderr.isTTY
+// are always false there) -- regardless of whether the ACP session itself is
+// bound to an interactive channel thread or spawned as an unattended
+// background/subagent task. With nonInteractivePermissions="fail", any write
+// or exec permission request that isn't auto-approved throws
+// PermissionPromptUnavailableError deep inside the Claude Agent SDK's own
+// tool-retry loop; the underlying agent then keeps retrying the denied tool
+// for the rest of the turn before the runtime finally resurfaces the stashed
+// error, producing a long hang followed by a hard ACP_TURN_FAILED instead of
+// a fast, graceful denial. "deny" keeps the same set of operations blocked
+// (no security weakening) but returns a normal in-band "permission denied"
+// tool result immediately, matching upstream acpx's own guidance for
+// harnessed/non-interactive runs ("prefer --approve-all with
+// nonInteractivePermissions=deny"). See docs/tools/acp-agents.md#permission-configuration.
+const DEFAULT_NON_INTERACTIVE_POLICY: AcpxNonInteractivePermissionPolicy = "deny";
 const DEFAULT_QUEUE_OWNER_TTL_SECONDS = 0.1;
 const DEFAULT_STRICT_WINDOWS_CMD_WRAPPER = true;
 

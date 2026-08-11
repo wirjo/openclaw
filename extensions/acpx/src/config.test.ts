@@ -14,9 +14,39 @@ describe("embedded acpx plugin config", () => {
     expect(resolved.cwd).toBe(workspaceDir);
     expect(resolved.stateDir).toBe(path.join(workspaceDir, "state"));
     expect(resolved.permissionMode).toBe("approve-reads");
-    expect(resolved.nonInteractivePermissions).toBe("fail");
+    expect(resolved.nonInteractivePermissions).toBe("deny");
     expect(resolved.timeoutSeconds).toBe(120);
     expect(resolved.agents).toEqual({});
+  });
+
+  it("defaults nonInteractivePermissions to deny (not fail) for the embedded runtime", () => {
+    // Regression test: the embedded acpx runtime always runs inside the
+    // headless gateway process, so process.stdin/stderr are never a TTY --
+    // for every ACP session, including ones bound to an interactive channel
+    // thread. With the old default ("fail"), any non-auto-approved write or
+    // exec permission request threw PermissionPromptUnavailableError deep
+    // inside the Claude Agent SDK's own tool-retry loop, causing background
+    // sessions_spawn(runtime="acp") turns to hang for the remainder of the
+    // turn before finally surfacing as AcpRuntimeError[ACP_TURN_FAILED].
+    // "deny" keeps the same operations blocked but returns a normal in-band
+    // denial immediately instead of throwing, so turns finish fast instead of
+    // deadlocking. See docs/tools/acp-agents.md#permission-configuration.
+    const resolved = resolveAcpxPluginConfig({
+      rawConfig: undefined,
+      workspaceDir: "/tmp/openclaw-acpx",
+    });
+
+    expect(resolved.nonInteractivePermissions).toBe("deny");
+    expect(resolved.nonInteractivePermissions).not.toBe("fail");
+  });
+
+  it("still allows callers to opt back into fail-fast nonInteractivePermissions", () => {
+    const resolved = resolveAcpxPluginConfig({
+      rawConfig: { nonInteractivePermissions: "fail" },
+      workspaceDir: "/tmp/openclaw-acpx",
+    });
+
+    expect(resolved.nonInteractivePermissions).toBe("fail");
   });
 
   it("keeps explicit timeoutSeconds config", () => {
